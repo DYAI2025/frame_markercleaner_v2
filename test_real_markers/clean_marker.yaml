@@ -1,0 +1,10 @@
+# Clean YAML Marker - Should be OK
+name: "Clean Marker"
+id: "CLEAN_001"
+description: "This marker should be fine"
+examples:
+  - "Good example 1" 
+  - "Good example 2"
+structure:
+  type: "test"
+  valid: true

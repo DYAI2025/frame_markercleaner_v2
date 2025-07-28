@@ -1,0 +1,10 @@
+# Broken YAML Marker 2 - Structure Problems  
+name: "Another Broken Marker"
+id: "BROKEN_002"
+description: "Structure issues here"
+examples
+  - "Bad example structure"
+  missing_colon_above: true
+structure:
+  type: "test"
+  # Invalid YAML syntax

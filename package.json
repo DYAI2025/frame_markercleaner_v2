@@ -1,0 +1,17 @@
+{
+  "name": "frame-markercleaner",
+  "version": "0.1.0",
+  "description": "One-Click Marker Cleaner GUI - Drag & Drop YAML Marker Fixer",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "keywords": ["electron", "yaml", "marker", "cleaner", "gui"],
+  "author": "Frame Markercleaner Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0"
+  },
+  "dependencies": {}
+}

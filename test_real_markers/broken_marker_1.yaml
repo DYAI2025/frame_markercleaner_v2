@@ -1,0 +1,9 @@
+# Broken YAML Marker 1 - ID Problems
+name: "Broken Marker"
+# id: missing completely
+description: "This marker has ID issues"
+examples:
+  - "Example 1"
+  - "Example 2"
+structure:
+  type: "test"
