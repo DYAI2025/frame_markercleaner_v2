@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+const { spawn } = require('child_process');
 
 // Hauptfenster-Referenz behalten
 let mainWindow;
@@ -63,60 +64,38 @@ ipcMain.handle('start-clean', async (event, { folderPath, options }) => {
   console.log('🎯 Main: start-clean received:', { folderPath, options });
   
   try {
-    console.log('🔄 Main: Starting REAL YAML processing...');
+    console.log('🔄 Main: Starting Python YAML processing...');
     
     // Progress-Updates senden
     event.sender.send('progress', {
       step: 'scanning',
-      message: 'Scanning YAML files...',
-      percent: 25
+      message: 'Starting Python marker cleaner...',
+      percent: 10
     });
     
-    // Echte YAML-Verarbeitung
-    const SimpleYAMLProcessor = require('./simple-yaml-processor');
-    const processor = new SimpleYAMLProcessor(folderPath);
+    // Python-Integration verwenden
+    const results = await runPythonMarkerCleaner(folderPath, event);
     
-    setTimeout(() => {
-      event.sender.send('progress', {
-        step: 'validating',
-        message: 'Validating markers...',
-        percent: 50
-      });
-    }, 500);
-    
-    // Echte Verarbeitung
-    const results = await processor.processFolder();
-    
-    setTimeout(() => {
-      event.sender.send('progress', {
-        step: 'fixing',
-        message: 'Categorizing results...',
-        percent: 75
-      });
-    }, 1000);
-    
-    // Finish-Event mit echten Daten
-    setTimeout(() => {
-      event.sender.send('finish', {
-        summary: {
-          total: results.total,
-          clean: results.clean,
-          fixId: results.fixId,
-          fixExample: results.fixExample,
-          fixStructure: results.fixStructure,
-          review: results.review
-        },
-        folderPath: folderPath,
-        reportPath: path.join(folderPath, 'marker-report.md'),
-        details: results.files
-      });
-    }, 1500);
+    // Finish-Event mit echten Python-Daten
+    event.sender.send('finish', {
+      summary: {
+        total: results.total,
+        clean: results.clean,
+        fixId: results.fixId,
+        fixExample: results.fixExample,
+        fixStructure: results.fixStructure,
+        review: results.review
+      },
+      folderPath: folderPath,
+      reportPath: path.join(folderPath, 'marker-report.md'),
+      details: results.files
+    });
     
     // Sofortige Antwort
     return {
       success: true,
-      message: 'Real YAML processing started',
-      jobId: 'real-job-' + Date.now()
+      message: 'Python YAML processing completed',
+      jobId: 'python-job-' + Date.now()
     };
     
   } catch (error) {
@@ -132,6 +111,67 @@ ipcMain.handle('start-clean', async (event, { folderPath, options }) => {
     };
   }
 });
+
+// Python Marker Cleaner ausführen
+async function runPythonMarkerCleaner(folderPath, event) {
+  return new Promise((resolve, reject) => {
+    const pythonProcess = spawn('python3', [
+      path.join(__dirname, 'marker_cleaner_integration.py'),
+      folderPath
+    ]);
+    
+    let outputData = '';
+    let errorData = '';
+    
+    // Stdout sammeln
+    pythonProcess.stdout.on('data', (data) => {
+      outputData += data.toString();
+    });
+    
+    // Stderr für Progress-Updates nutzen
+    pythonProcess.stderr.on('data', (data) => {
+      const stderrLines = data.toString().split('\n');
+      for (const line of stderrLines) {
+        if (line.startsWith('PROGRESS:')) {
+          try {
+            const progressData = JSON.parse(line.substring(9));
+            event.sender.send('progress', {
+              step: 'processing',
+              message: progressData.message,
+              percent: progressData.percent
+            });
+          } catch (e) {
+            console.log('Progress parse error:', e);
+          }
+        } else if (line.trim()) {
+          errorData += line + '\n';
+        }
+      }
+    });
+    
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Python process exited with code ${code}: ${errorData}`));
+        return;
+      }
+      
+      try {
+        const result = JSON.parse(outputData);
+        if (result.success) {
+          resolve(result.results);
+        } else {
+          reject(new Error(result.error));
+        }
+      } catch (error) {
+        reject(new Error(`Failed to parse Python output: ${error.message}`));
+      }
+    });
+    
+    pythonProcess.on('error', (error) => {
+      reject(new Error(`Failed to start Python process: ${error.message}`));
+    });
+  });
+}
 
 // Ordner öffnen
 ipcMain.handle('open-folder', async (event, folderPath) => {
